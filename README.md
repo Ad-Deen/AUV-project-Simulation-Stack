@@ -4,6 +4,10 @@ This repository contains the simulation files for Project AUV ORCA, designed to 
 
 The simulation package requires **ros2-gz-bridge** to interface between ROS2 and Ignition Gazebo. Once set up, you will be able to control the ORCA model using keyboard commands and publish velocity messages to control its movement.
 
+<img src="Git content/Screenshot from 2025-07-28 16-03-38.png" width="600" height="400" />
+
+<img src="Git content/Screenshot from 2025-07-28 16-04-07.png" width="600" height="400" />
+
 ## Features
 
 - **Custom Pool World**: A custom-built underwater pool environment for ORCA with realistic hydrodynamics.
@@ -75,6 +79,8 @@ The package includes a teleoperation script that allows you to control the ORCA 
 ```bash
 ros2 run auv_orca_simulation teleop_control
 ```
+<img src="Git content/Screencast from 07-28-2025 04-07-59 PM (1).gif" width="800" height="600" />
+
 Once started, you can control the ORCA model using the following keys:
 
 - **W**: Forward thrust
