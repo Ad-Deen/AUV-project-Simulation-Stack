@@ -1,0 +1,785 @@
+<?xml version="1.0" ?>
+<!--
+  Example showing various marine plugins working together for an
+  Autonomous Underwater Vehicle (AUV).
+
+  The following plugins are used:
+
+  * Buoyancy: applies buoyancy forces
+  * JointPositionController: controls the vertical and horizontal fins
+  * LiftDrag: generates forces on the vertical and horizontal fins
+  * Thruster: propels the vehicle
+  * Hydrodynamics: applies forces such as added mass, drag and coriolis
+
+  Example commands for the vehicle to move in a circle:
+
+  1. Move the rudder:
+
+      ign topic -t /model/tethys/joint/vertical_fins_joint/0/cmd_pos -m ignition.msgs.Double -p 'data: -0.17'
+
+  2. Propel the vehicle:
+
+      ign topic -t /model/Orca/joint/propeller0_joint/cmd_thrust -m ignition.msgs.Double -p 'data: -31'
+
+-->
+
+<!--
+This example shows you how to use the BuoyancyEngine system to
+control the buoyancy of an underwater glider. It uses Archimedes'
+principle to apply an upward force based on the volume of the bladder. It
+listens to the topic `buoyancy_engine` or
+/model/{namespace}/buoyancy_engine` topic for the volume of the bladder in
+*cubicmeters*.
+## Parameters
+<link_name> - The link which the plugin is attached to [required, string]
+<namespace> - The namespace for the topic. If empty the plugin will listen
+  on `buoyancy_engine` otherwise it listens on
+  `/model/{namespace}/buoyancy_engine` [optional, string]
+<min_volume> - Minimum volume of the engine [optional, float,
+  default=0.00003m^3]
+<neutral_volume> - At this volume the engine has neutral buoyancy. Used to
+  estimate the weight of the engine [optional, float, default=0.0003m^3]
+<default_volume> - The volume which the engine starts at [optional, float,
+  default=0.0003m^3]
+<max_volume> - Maximum volume of the engine [optional, float,
+  default=0.00099m^3]
+<max_inflation_rate> - Maximum inflation rate for bladder [optional,
+  float, default=0.000003m^3/s]
+<fluid_density> - The fluid density of the liquid its suspended in kgm^-3.
+  [optional, float, default=1000kgm^-3]
+## Topics
+* Subscribes to a ignition::msgs::Double on `buoyancy_engine` or
+ `/model/{namespace}/buoyancy_engine`. This is the set point for the
+ engine.
+* Publishes a ignition::msgs::Double on `buoyancy_engine` or
+ `/model/{namespace}/buoyancy_engine/current_volume` on the current volume
+## Examples
+
+To get started run:
+```
+ign gazebo buoyancy_engine.sdf
+```
+You will see two boxes. The box on the right doesn't have a surface set whereas
+the box on the left does. When commanded to go up, the box on the left will rise
+until it breaches and then start oscillating around the surface. On the other
+hand the box on the right will rise forever as no surface is set.
+Enter the following in a separate terminal:
+```
+ign topic -t  /model/buoyant_box/buoyancy_engine/ -m ignition.msgs.Double
+   -p "data: 0.003"
+```
+The boxes will float up. Note that the box on the left will start oscillating
+once it breaches the surface.
+```
+ign topic -t  /model/buoyant_box/buoyancy_engine/ -m ignition.msgs.Double -p "data: 0.001"
+```
+The boxes will go down.
+To see the current volume enter:
+```
+ign topic -t  /model/buoyant_box/buoyancy_engine/current_volume -e
+```
+-->
+<sdf version="1.6">
+  <world name="buoyant_tethys">
+    <!-- <scene> -->
+      <!-- For turquoise ambient -->
+      <!-- <ambient>0.0 1.0 1.0</ambient>
+      <background>0.0 0.7 0.8</background>
+    </scene> -->
+
+    <scene>
+      <!-- For turquoise ambient -->
+      <ambient>0.7 0.7 0.7</ambient>
+      <background>0.7 0.7 0.7</background>
+    </scene>
+    
+
+    <physics name="1ms" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin
+      filename="ignition-gazebo-physics-system"
+      name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-user-commands-system"
+      name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-scene-broadcaster-system"
+      name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-contact-system"
+      name="ignition::gazebo::systems::Contact">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-buoyancy-system"
+      name="ignition::gazebo::systems::Buoyancy">
+      <graded_buoyancy>
+        <default_density>1000</default_density>
+        <density_change>
+          <above_depth>0</above_depth>
+          <density>1</density>
+        </density_change>
+      </graded_buoyancy>
+
+      <!-- enable by top level model name -->
+      <enable>Orca</enable>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="Env">
+      <pose>0 0 0 0 0 0</pose>
+      <static>true</static>
+      <link name="pool">
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>pool.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>pool2.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <link name="water">
+        <pose>0 0 -.1 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>water.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <link name="challenge1">
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>challange1.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>challange1.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <link name="challenge2">
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>challange2.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>challange2.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <link name="challenge3">
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>challange3.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>challange3.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <link name="challenge4">
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>challange1.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>challange4.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+      <link name="challenge5">
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>challange5.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh>
+            <uri>challange5.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+          </geometry>
+        </visual>
+      </link>
+
+    </model>
+
+    <model name="Orca">
+      <pose>0 0 0 0 0 0</pose>
+        <link name="base_link">
+            <inertial>
+                <!-- <mass>14.28</mass> -->
+                <mass>14.68</mass>
+                <inertia>
+                    <ixx>1</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>1</iyy>
+                    <iyz>0</iyz>
+                    <izz>1</izz>
+                </inertia>
+            </inertial>
+            <collision name="main_body_buoyancy">
+                <pose>0 0 -0.02 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.7 0.2 0.11</size>
+                    </box>
+                </geometry>
+            </collision>
+            <visual name="visual">
+            <pose>0 0 0 0 0 1.57</pose>
+                <geometry>
+                    <mesh>
+                        <uri>AUV.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <plugin
+          filename="libignition-gazebo-buoyancy-engine-system.so"
+          name="ignition::gazebo::systems::BuoyancyEngine">
+          <link_name>base_link</link_name>
+          <namespace>Orca</namespace>
+          <min_volume>0.015</min_volume>
+          <neutral_volume>0.0154</neutral_volume>
+          <default_volume>0.0154</default_volume>
+          <max_volume>0.016</max_volume>
+          <max_inflation_rate>0.0001</max_inflation_rate>
+        </plugin>
+
+        
+        <!-- Propeller arrangement  -->
+            <!-- 5*  6* -->
+          <!-- 0*      2* -->
+          <!-- 1*      3* -->
+            <!-- 7*  4* -->
+        <!-- Propeller0 -->
+        <link name="propeller0">
+            <pose>-0.0625 0.0625 0 0 0 0</pose>
+            <inertial>
+                <pose>0.235 0.17 0 0 1.57 0</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller0.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <joint name="propeller0_joint" type="revolute">
+            <pose>0.235 0.17 0 0 1.57 0</pose>
+            <parent>base_link</parent>
+            <child>propeller0</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller0_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+        <!-- Propeller1 -->
+        <link name="propeller1">
+            <pose>0.0625 0.0625 0 0 0 0</pose>
+            <inertial>
+                <pose>-0.235 0.17 0 0 1.57 0</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller1.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint>  -->
+        <joint name="propeller1_joint" type="revolute">
+            <pose>-0.235 0.17 0 0 1.57 0</pose>
+            <parent>base_link</parent>
+            <child>propeller1</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller1_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+        <!-- Propeller2 -->
+        <link name="propeller2">
+            <pose>-0.0625 -0.0625 0 0 0 0</pose>
+            <inertial>
+                <pose>0.235 -0.17 0 0 1.57 0</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller2.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint>  -->
+        <joint name="propeller2_joint" type="revolute">
+            <pose>0.235 -0.17 0 0 1.57 0</pose>
+            <parent>base_link</parent>
+            <child>propeller2</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller2_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+        <!-- Propeller3 -->
+        <link name="propeller3">
+            <pose>0.0625 -0.0625 0 0 0 0</pose>
+            <inertial>
+                <pose>-0.235 -0.17 0 0 1.57 0</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller3.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint>  -->
+        <joint name="propeller3_joint" type="revolute">
+            <pose>-0.235 -0.17 0 0 1.57 0</pose>
+            <parent>base_link</parent>
+            <child>propeller3</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller3_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+        <!-- Propeller4 -->
+        <link name="propeller4">
+            <pose>-.475 -.475 0 0 0 0</pose>
+            <inertial>
+                <pose>.163 0.313 0.001 0 0 2.269</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller4.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint> 130 degree rotation angle(z rot angle from <0> to <130>) -->
+        <joint name="propeller4_joint" type="revolute">
+            <pose>.163 0.313 0.001 0 0 2.269</pose>
+            <parent>base_link</parent>
+            <child>propeller4</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller4_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+        <!-- Propeller5 -->
+        <link name="propeller5">
+            <pose>0.475 0.475 0 0 0 0</pose>
+            <inertial>
+                <pose>-0.163 -0.313 0.001 0 0 -0.8726</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller5.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint> 50 degree rotation angle(z rot angle from <0> to <50>) -->
+        <joint name="propeller5_joint" type="revolute">
+            <pose>-0.163 -0.313 0.001 0 0 -0.8726</pose>
+            <parent>base_link</parent>
+            <child>propeller5</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller5_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+        <!-- Propeller6 -->
+        <link name="propeller6">
+            <pose>0 0 0 0 0 1.57</pose>
+            <inertial>
+                <pose>-0.163 -0.313 0.001 0 0 -0.698</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller5.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint> 40 degree rotation angle(z rot angle from <0> to <40>) -->
+        <joint name="propeller6_joint" type="revolute">
+            <pose>-0.163 -0.313 0.001 0 0 -0.698</pose>
+            <parent>base_link</parent>
+            <child>propeller6</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller6_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+
+        <!-- Propeller7 -->
+        <link name="propeller7">
+            <pose>0 0 0 0 0 1.57</pose>
+            <inertial>
+                <pose>.163 0.313 0.001 0 0 2.443</pose>
+                <mass>0.09</mass>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+            </inertial>
+            <visual name="visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <mesh>
+                        <uri>propeller4.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- </joint> 140 degree rotation angle(z rot angle from <0> to <140>) -->
+        <joint name="propeller7_joint" type="revolute">
+            <pose>.163 0.313 0.001 0 0 2.443</pose>
+            <parent>base_link</parent>
+            <child>propeller7</child>
+            <axis>
+                <xyz>1 0 0</xyz>
+                <limit>
+                    <lower>-1e+12</lower>
+                    <upper>1e+12</upper>
+                    <effort>-1</effort>
+                    <velocity>-1</velocity>
+                </limit>
+            </axis>
+        </joint>
+
+        <plugin
+            filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+            <namespace>Orca</namespace>
+            <joint_name>propeller7_joint</joint_name>
+            <thrust_coefficient>0.004422</thrust_coefficient>
+            <fluid_density>1000</fluid_density>
+            <propeller_diameter>0.2</propeller_diameter>
+        </plugin>
+
+      <!-- Lift and drag -->
+
+      <!-- Vertical fin -->
+
+      <!-- hydrodynamics plugin-->
+      <plugin
+        filename="ignition-gazebo-hydrodynamics-system"
+        name="ignition::gazebo::systems::Hydrodynamics">
+        <link_name>base_link</link_name>
+        <xDotU>-0</xDotU>
+        <yDotV>-0</yDotV>
+        <zDotW>-0</zDotW>
+        <kDotP>-0</kDotP>
+        <mDotQ>-0</mDotQ>
+        <nDotR>-0</nDotR>
+        <xUabsU>-20</xUabsU>
+        <xU>-5</xU>
+        <yVabsV>-20</yVabsV>
+        <yV>-5</yV>
+        <zWabsW>-5</zWabsW>
+        <zW>-5</zW>
+        <kPabsP>-500</kPabsP>
+        <kP>-500</kP>
+        <mQabsQ>-500</mQabsQ>
+        <mQ>-500</mQ>
+        <nRabsR>-30</nRabsR>
+        <nR>-30</nR>
+      </plugin>
+
+      <plugin
+        filename="ignition-gazebo-pose-publisher-system"
+        name="gz::sim::systems::PosePublisher">
+        <publish_link_pose>true</publish_link_pose>
+        <publish_collision_pose>false</publish_collision_pose>
+        <publish_visual_pose>false</publish_visual_pose>
+        <publish_nested_model_pose>false</publish_nested_model_pose>
+      </plugin>
+      <!-- <plugin
+        filename="ignition-gazebo-odometry-system"
+        name="ignition::gazebo::systems::Odometry">
+
+        <odom_frame>Orca/odom</odom_frame>
+        <odom_publish_frequency>30</odom_publish_frequency>
+        <odom_topic>model/Orca/odometry</odom_topic>
+      </plugin> -->
+
+    </model>
+
+  </world>
+</sdf>
