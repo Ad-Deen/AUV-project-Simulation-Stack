@@ -177,11 +177,10 @@ To run the simulation, launch the environment with the following command:
 ros2 launch isaac_sim_auv start_simulation.launch.py
 ```
 This will:
-
-<img src="Git content/Simulation environment.png" width="800" height="600" />
-
 - Start the simulation in **NVIDIA Isaac Sim** with the configured custom world and water physics.
 - Spawn the AUV models into the simulation environment.
+
+<img src="Git content/Simulation environment.png" width="800" height="600" />
 
 ### Teleoperation (Keyboard Control)
 
