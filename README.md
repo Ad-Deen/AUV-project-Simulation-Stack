@@ -121,3 +121,104 @@ Make sure to use the script for controlling the movement and navigation of the O
 ### Stopping the Simulation
 
 To stop the simulation, press `Ctrl+C` in the terminal where the simulation is running.
+
+# AUV ORCA Simulation Package (NVIDIA Isaac Sim Env)
+
+## Overview
+
+This repository contains the setup and configuration for the **NVIDIA Isaac Sim** environment, where we have successfully integrated custom models and implemented **water physics** to simulate underwater environments. The goal of this simulation is to provide a high-fidelity virtual environment for testing and development of AUVs (Autonomous Underwater Vehicles).
+
+### Key Features:
+- **Custom Models**: Added and configured custom AUV models for simulation.
+- **Water Physics**: Realistic water physics have been incorporated to simulate buoyancy, drag, and other hydrodynamic effects.
+  
+At this point, we have successfully set up the simulation environment, and all models are functioning correctly within the physics-enabled world. 
+
+### Future Work:
+While the setup is largely complete, the following features are still to be implemented:
+
+1. **ROS 2 Control Architecture**:
+   - Integration with the ROS 2 control stack is still pending. Once implemented, this will allow for seamless communication between ROS 2 nodes and the simulation, enabling real-time control of the AUVs via ROS 2 messages.
+
+2. **Propeller Physics**:
+   - The implementation of accurate **propeller physics** (e.g., thrust, drag, torque) is also in the development phase. Once integrated, this will provide a more realistic simulation of AUV movement and maneuvering in the water environment.
+
+## Current Setup
+
+### System Requirements
+- **Hardware**: NVIDIA RTX GPU (or equivalent for CUDA support).
+- **Software**: NVIDIA Isaac Sim, ROS 2 (Humble or later), Docker (for ease of setup).
+
+### Installation Instructions
+
+1. **Install NVIDIA Isaac Sim**:
+   - Follow the official [NVIDIA Isaac Sim installation guide](https://developer.nvidia.com/isaac-sim) to install the simulation environment.
+
+2. **Clone the Repository**:
+   - Clone this repository to your local machine:
+   
+   ```bash
+   git clone https://github.com/yourusername/isaac_sim_auv.git
+   cd isaac_sim_auv
+   ```
+   ### Setup Custom Models
+
+The custom AUV models are already added to the simulation. You can add more models by placing them in the appropriate directories (`/models/`).
+
+### Configure Water Physics
+
+The water physics configuration has been applied to the custom world. You can adjust the physics properties such as viscosity, density, and resistance by editing the simulation parameters in the `water_physics.yaml` file.
+
+### Running the Simulation
+
+To run the simulation, launch the environment with the following command:
+
+```bash
+ros2 launch isaac_sim_auv start_simulation.launch.py
+```
+This will:
+
+<img src="Git content/Simulation environment.png" width="800" height="600" />
+
+- Start the simulation in **NVIDIA Isaac Sim** with the configured custom world and water physics.
+- Spawn the AUV models into the simulation environment.
+
+### Teleoperation (Keyboard Control)
+
+At the moment, **ROS 2 control integration** for keyboard input is not yet implemented. However, the following control setup is planned for future releases:
+- Control the AUV using keyboard input to send velocity commands via **ROS 2 topics**.
+- Integrate with **propeller physics** for realistic movement and handling.
+
+### Future Work
+
+#### ROS 2 Control Integration
+We plan to integrate the **ROS 2 Control** architecture, which will allow for:
+- Real-time control over the AUVs using **ROS 2 messages**.
+- Teleoperation using existing **ROS 2 controllers** for efficient communication between hardware (real or simulated) and the control system.
+
+#### Propeller Physics Integration
+Accurate **propeller physics** will be integrated to simulate:
+- Thrust generation, torque, and resistance.
+- Realistic control of movement based on propeller forces and water interactions.
+
+#### AUV Autonomy
+Future versions will also include autonomy features like:
+- Path planning
+- Obstacle avoidance
+- Autonomous navigation within the simulation environment.
+
+### Troubleshooting
+
+- **Performance Issues**: If the simulation is lagging, ensure that your system meets the recommended GPU and CPU specifications.
+- **Physics Glitches**: If the water physics seem unstable, try adjusting the physical properties in the `water_physics.yaml` file to better suit your hardware.
+
+### Contributing
+
+We welcome contributions! If you would like to contribute to the project, feel free to fork the repository and create a pull request with your changes. Please ensure your code follows the [ROS 2 style guidelines](https://index.ros.org/doc/ros2/Contributing/).
+
+### License
+
+This project is licensed under the **MIT License** - see the LICENSE file for details.
+
+
+
