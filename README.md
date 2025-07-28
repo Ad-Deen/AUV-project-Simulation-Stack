@@ -18,12 +18,27 @@ The simulation package requires **ros2-gz-bridge** to interface between ROS2 and
 2. **Ignition Gazebo Fortress**: Ensure that you have Ignition Gazebo Fortress installed. You can find installation instructions [here](https://ignitionrobotics.org/docs/fortress).
 3. **ros2-gz-bridge**: This package is needed to bridge messages between ROS2 and Ignition Gazebo. Follow the installation instructions [here](https://github.com/ignitionrobotics/ros_ign).
 
+## Pre-Build Instructions
+
+Before building the package, you need to download the **AUV.dae** file and place it in the appropriate directory.
+
+1. Download the **AUV.dae** file from the following link:  
+   [Download AUV.dae](https://drive.google.com/drive/folders/1k21B9THWymgC9J7LdG8_TtC-5e7bhADc?usp=sharing)
+
+2. Once downloaded, place the **AUV.dae** file in the `worlds` directory of the ORCA simulation package. The path should be:
+   ```bash
+   cd ~/ros2_ws/src
+   git clone https://github.com/your-username/auv-orca-simulation.git
+   ```
+
+3. After placing the file in the correct directory, you can proceed with building the package as outlined in the [installation section](#installation).
+
+
 ## Installation
 
 1. Clone this repository into your ROS2 workspace:
    ```bash
-   cd ~/ros2_ws/src
-   git clone https://github.com/your-username/auv-orca-simulation.git
+   /orca/worlds/AUV.dae
    ```
 2. Install dependencies:
    ```bash
